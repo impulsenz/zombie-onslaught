@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin Control Panel - Onslaught: Terraform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body class="min-h-screen">
+  <header class="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 bg-black/40 px-6 py-3">
+    <div class="flex items-center gap-3">
+      <a href="/" class="font-display text-xl text-blood-500">ONSLAUGHT: TERRAFORM</a>
+      <span class="chip bg-amber-400/15 text-amber-300">Admin Control Panel</span>
+    </div>
+    <nav class="flex gap-1" id="tabs">
+      <button data-tab="overview" class="btn-ghost btn-sm">Overview</button>
+      <button data-tab="users" class="btn-ghost btn-sm">Users</button>
+      <button data-tab="sessions" class="btn-ghost btn-sm">Games</button>
+      <button data-tab="logs" class="btn-ghost btn-sm">Audit log</button>
+    </nav>
+  </header>
+
+  <main class="mx-auto max-w-7xl space-y-6 p-6">
+    <!-- Overview -->
+    <section data-panel="overview" class="space-y-6">
+      <div id="stat-cards" class="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-7"></div>
+      <div class="panel p-5">
+        <h2 class="panel-title">Access mode</h2>
+        <p class="mt-1 text-sm text-zinc-400">Controls what happens when someone signs in for the first time.</p>
+        <div class="mt-4 grid gap-3 md:grid-cols-2">
+          <label class="flex cursor-pointer gap-3 rounded-lg border border-zinc-700 p-4 has-[:checked]:border-amber-400 has-[:checked]:bg-amber-400/5">
+            <input type="radio" name="access" value="whitelist" class="mt-1 accent-amber-400" />
+            <span><span class="font-semibold">Whitelist (approval required)</span><br /><span class="text-sm text-zinc-400">New accounts start as <em>pending</em> and cannot play until an admin approves them.</span></span>
+          </label>
+          <label class="flex cursor-pointer gap-3 rounded-lg border border-zinc-700 p-4 has-[:checked]:border-amber-400 has-[:checked]:bg-amber-400/5">
+            <input type="radio" name="access" value="blacklist" class="mt-1 accent-amber-400" />
+            <span><span class="font-semibold">Blacklist (open access)</span><br /><span class="text-sm text-zinc-400">New accounts are approved automatically; admins can ban individuals.</span></span>
+          </label>
+        </div>
+      </div>
+      <div class="panel p-5">
+        <div class="flex items-center justify-between">
+          <h2 class="panel-title">Pending approvals</h2>
+          <button id="approve-all" class="btn-secondary btn-sm">Approve all</button>
+        </div>
+        <ul id="pending-list" class="mt-3 divide-y divide-zinc-800"></ul>
+      </div>
+    </section>
+
+    <!-- Users -->
+    <section data-panel="users" class="hidden space-y-4">
+      <div class="flex flex-wrap gap-2">
+        <input id="user-search" class="input max-w-xs" placeholder="Search name or email..." />
+        <select id="user-status" class="input max-w-[180px]">
+          <option value="">All statuses</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="banned">Banned</option>
+        </select>
+      </div>
+      <div class="panel overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="border-b border-zinc-800 text-left text-xs uppercase tracking-wider text-zinc-500">
+            <tr><th class="p-3">User</th><th class="p-3">Status</th><th class="p-3">Role</th><th class="p-3">Level</th><th class="p-3">Points</th><th class="p-3">Kills / Best</th><th class="p-3">Last login</th><th class="p-3 text-right">Actions</th></tr>
+          </thead>
+          <tbody id="user-rows" class="divide-y divide-zinc-800"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Sessions -->
+    <section data-panel="sessions" class="hidden space-y-6">
+      <div class="panel p-5">
+        <h2 class="panel-title">Live rooms</h2>
+        <ul id="live-rooms" class="mt-3 divide-y divide-zinc-800"></ul>
+      </div>
+      <div class="panel overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="border-b border-zinc-800 text-left text-xs uppercase tracking-wider text-zinc-500">
+            <tr><th class="p-3">Room</th><th class="p-3">Started</th><th class="p-3">Duration</th><th class="p-3">Wave</th><th class="p-3">Outcome</th><th class="p-3">Players</th></tr>
+          </thead>
+          <tbody id="session-rows" class="divide-y divide-zinc-800"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Logs -->
+    <section data-panel="logs" class="hidden">
+      <div class="panel overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="border-b border-zinc-800 text-left text-xs uppercase tracking-wider text-zinc-500">
+            <tr><th class="p-3">When</th><th class="p-3">Admin</th><th class="p-3">Action</th><th class="p-3">Details</th></tr>
+          </thead>
+          <tbody id="log-rows" class="divide-y divide-zinc-800"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- Grant dialog -->
+  <dialog id="grant-dialog" class="panel w-full max-w-sm p-0 text-zinc-100 backdrop:bg-black/70">
+    <form method="dialog" id="grant-form" class="space-y-3 p-5">
+      <h3 class="panel-title">Grant rewards</h3>
+      <p id="grant-user" class="text-sm text-zinc-400"></p>
+      <label class="block text-sm">Points (negative to deduct)<input name="points" type="number" class="input mt-1" value="0" /></label>
+      <label class="block text-sm">XP<input name="xp" type="number" min="0" class="input mt-1" value="0" /></label>
+      <label class="block text-sm">Skill points (negative to deduct)<input name="skillPoints" type="number" class="input mt-1" value="0" /></label>
+      <div class="flex justify-end gap-2 pt-2">
+        <button value="cancel" formnovalidate class="btn-ghost">Cancel</button>
+        <button value="ok" class="btn-primary">Grant</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="/js/admin.js"></script>
+</body>
+</html>

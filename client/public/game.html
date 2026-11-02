@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Onslaught - Colony</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/app.css" />
+  <style>
+    body { overflow: hidden; } canvas#game { cursor: crosshair; display: block; }
+    input[type=range] { accent-color: #f59e0b; }
+  </style>
+</head>
+<body class="bg-black">
+  <canvas id="game" class="fixed inset-0 h-full w-full"></canvas>
+
+  <div id="hud" class="hud fixed inset-0 hidden">
+    <!-- top centre: wave, layer, terraform, HQ -->
+    <div class="absolute left-1/2 top-3 w-[min(560px,92vw)] -translate-x-1/2 space-y-1.5">
+      <div class="hud-box flex items-center justify-between gap-4 px-4 py-2">
+        <div>
+          <p class="text-[11px] uppercase tracking-widest text-zinc-400" id="phase-label">Build phase</p>
+          <p class="font-display text-2xl leading-none">WAVE <span id="wave-num">0</span></p>
+        </div>
+        <div class="text-center">
+          <p id="phase-timer" class="font-display text-3xl leading-none text-amber-400">0</p>
+          <p id="phase-sub" class="text-xs text-zinc-400"></p>
+        </div>
+        <div class="text-right text-sm">
+          <p id="layer-label" class="font-display text-base text-sky-300">SURFACE</p>
+          <p id="env-label" class="text-xs text-zinc-400"></p>
+        </div>
+      </div>
+      <div class="hud-box px-3 py-1">
+        <div class="flex justify-between text-[11px] uppercase tracking-wider text-emerald-300"><span>Terraforming</span><span id="tf-text">0%</span></div>
+        <div class="bar mt-0.5 h-1.5"><span id="tf-bar" class="bg-gradient-to-r from-emerald-500 to-sky-400" style="width:0"></span></div>
+      </div>
+      <div class="hud-box px-3 py-1">
+        <div class="flex justify-between text-[11px] uppercase tracking-wider text-zinc-300"><span>HQ integrity</span><span id="hq-text"></span></div>
+        <div class="bar mt-0.5 h-2"><span id="hq-bar" class="bg-gradient-to-r from-blood-600 to-amber-400" style="width:100%"></span></div>
+      </div>
+      <div id="dome-box" class="hud-box px-3 py-1">
+        <div class="flex justify-between text-[11px] uppercase tracking-wider text-sky-300"><span id="dome-label">Colony dome</span><span id="dome-text"></span></div>
+        <div class="bar mt-0.5 h-2"><span id="dome-bar" class="bg-gradient-to-r from-sky-500 to-cyan-300" style="width:100%"></span></div>
+        <p id="dome-sub" class="mt-0.5 text-[11px] text-zinc-400"></p>
+      </div>
+      <div id="boss-box" class="hud-box hidden border-blood-600/60 px-3 py-1.5">
+        <div class="flex justify-between text-xs font-bold uppercase tracking-wider text-blood-400"><span id="boss-name">Boss</span><span id="boss-text"></span></div>
+        <div class="bar mt-1 h-3"><span id="boss-bar" class="bg-blood-500" style="width:100%"></span></div>
+      </div>
+    </div>
+
+    <!-- top left: resources + feed -->
+    <div class="absolute left-3 top-3 w-[22rem] space-y-2">
+      <div class="hud-box p-3">
+        <div class="mb-1.5 flex items-center justify-between text-xs font-bold uppercase tracking-widest text-zinc-300"><span>Colony stockpile</span><span id="refine-rate" class="font-normal normal-case tracking-normal text-orange-300"></span></div>
+        <div id="res" class="grid grid-cols-2 gap-x-4 gap-y-1.5 text-base"></div>
+        <p id="storage-note" class="mt-1.5 text-xs text-zinc-400"></p>
+        <p id="mods" class="mt-1 text-xs text-fuchsia-300"></p>
+      </div>
+      <div id="feed" class="flex flex-col gap-1 text-sm"></div>
+    </div>
+
+    <!-- top right: minimap + team -->
+    <div class="absolute right-3 top-3 w-60 space-y-2">
+      <canvas id="minimap" width="240" height="180" class="hud-box w-full"></canvas>
+      <div class="hud-box px-2 py-1.5 text-xs">
+        <p class="mb-1 flex items-center justify-between text-[11px] font-bold uppercase tracking-widest text-zinc-400"><span>Crew</span><button id="dev-btn" class="hidden rounded bg-fuchsia-600/30 px-1.5 text-[10px] font-bold text-fuchsia-200">DEV [F9]</button></p>
+        <p id="net-line" class="mb-1 text-[11px] text-zinc-400"></p>
+        <ul id="team" class="space-y-0.5"></ul>
+      </div>
+    </div>
+
+    <!-- bottom left: vitals -->
+    <div class="absolute bottom-3 left-3 w-72 space-y-2">
+      <div id="buffs" class="flex flex-wrap gap-1"></div>
+      <div class="hud-box space-y-1.5 p-3">
+        <div class="flex items-center justify-between">
+          <span id="lives" class="text-lg tracking-widest text-blood-500"></span>
+          <span class="text-xs text-zinc-400">LV <span id="my-level">1</span> &middot; <span id="my-kills">0</span> kills</span>
+        </div>
+        <div>
+          <div class="flex justify-between text-[11px] uppercase text-zinc-400"><span>Health</span><span id="hp-text"></span></div>
+          <div class="bar mt-0.5 h-2.5"><span id="hp-bar" class="bg-blood-500" style="width:100%"></span></div>
+        </div>
+        <div id="shield-wrap" class="hidden">
+          <div class="flex justify-between text-[11px] uppercase text-sky-300"><span>Suit shield</span><span id="sh-text"></span></div>
+          <div class="bar mt-0.5 h-1.5"><span id="sh-bar" class="bg-sky-300" style="width:0"></span></div>
+        </div>
+        <div>
+          <div class="flex justify-between text-[11px] uppercase text-cyan-300"><span id="o2-label">Oxygen</span><span id="o2-text"></span></div>
+          <div class="bar mt-0.5 h-2"><span id="o2-bar" class="bg-cyan-400" style="width:100%"></span></div>
+        </div>
+        <div class="bar h-1"><span id="st-bar" class="bg-zinc-300" style="width:100%"></span></div>
+        <div class="flex items-center justify-between border-t border-white/10 pt-1 text-[11px]">
+          <span class="uppercase text-zinc-400">Backpack</span><span id="pack" class="text-amber-200"></span>
+        </div>
+        <div class="flex items-center justify-between text-[11px]"><span class="uppercase text-zinc-400">Mining tool (RMB)</span><span id="tool-name" class="text-orange-200"></span></div>
+        <p id="elevated" class="hidden text-xs font-bold text-amber-300">ON THE WALL &middot; +20% damage</p>
+      </div>
+    </div>
+
+    <!-- bottom centre: weapons -->
+    <div class="absolute bottom-3 left-1/2 -translate-x-1/2 space-y-2">
+      <div id="interact-hint" class="hidden text-center text-sm font-semibold text-amber-300 drop-shadow"></div>
+      <div id="mode-hint" class="hidden text-center text-sm font-bold text-yellow-300 drop-shadow"></div>
+      <div id="reload-wrap" class="mx-auto hidden w-40"><div class="bar h-1.5"><span id="reload-bar" class="bg-amber-400" style="width:0"></span></div></div>
+      <div id="weapons" class="flex justify-center gap-1.5"></div>
+      <div id="consumables" class="flex justify-center gap-3 text-sm"></div>
+    </div>
+
+    <!-- bottom right: power grid -->
+    <div class="absolute bottom-3 right-3 w-[22rem]">
+      <div id="power-panel" class="hud-box space-y-2 p-3.5 text-sm">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold uppercase tracking-widest text-yellow-300">&#9889; Power grid <span id="pw-net" class="font-normal normal-case text-zinc-500"></span></span>
+          <span id="pw-status" class="chip bg-toxic-500/20 text-toxic-400">OK</span>
+        </div>
+        <div class="flex items-center justify-between text-xs text-zinc-400"><span id="pw-sun"></span><span id="pw-nodes"></span></div>
+        <div>
+          <div class="flex justify-between text-zinc-300"><span>Generation</span><span id="pw-gen-text" class="font-semibold text-yellow-200"></span></div>
+          <div class="bar mt-0.5 h-2.5"><span id="pw-gen-bar" class="bg-yellow-300" style="width:0"></span></div>
+        </div>
+        <div>
+          <div class="flex justify-between text-zinc-300"><span>Powered / demand</span><span id="pw-use-text" class="font-semibold"></span></div>
+          <div class="bar mt-0.5 h-2.5"><span id="pw-use-bar" class="bg-orange-400" style="width:0"></span></div>
+          <canvas id="pw-graph" width="320" height="64" class="mt-1.5 h-16 w-full rounded bg-black/40"></canvas>
+          <div class="mt-0.5 flex gap-3 text-xs text-zinc-400"><span><span class="inline-block h-0.5 w-3 bg-yellow-300 align-middle"></span> generation</span><span><span class="inline-block h-2 w-3 bg-orange-400/60 align-middle"></span> drawn now (base + turret fire)</span><span>last 60s</span></div>
+          <p id="pw-shots" class="mt-0.5 text-xs text-zinc-500"></p>
+        </div>
+        <div>
+          <div class="flex justify-between text-zinc-300"><span>Stored energy</span><span id="pw-bat-text" class="font-semibold text-green-300"></span></div>
+          <div class="bar mt-0.5 h-3"><span id="pw-bat-bar" class="bg-green-400" style="width:0"></span></div>
+          <p id="pw-bat-rate" class="mt-0.5 text-xs text-zinc-400"></p>
+        </div>
+        <p id="pw-offline" class="border-t border-white/10 pt-1 text-xs text-zinc-400"></p>
+      </div>
+      <p class="mt-1 text-right text-[11px] text-zinc-400"><span class="kbd">B</span> build <span class="kbd">V</span> wire <span class="kbd">J</span> research <span class="kbd">C</span> character <span class="kbd">Esc</span> menu</p>
+    </div>
+
+    <div id="hover-info" class="hud-box absolute hidden px-3 py-2 text-xs"></div>
+    <div id="banner" class="absolute left-0 right-0 top-[22%] hidden text-center">
+      <p id="banner-title" class="font-display text-6xl tracking-wider text-amber-300 drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)]"></p>
+      <p id="banner-sub" class="mt-1 text-xl font-semibold text-zinc-200 drop-shadow"></p>
+    </div>
+    <div id="center-msg" class="absolute left-1/2 top-[38%] hidden -translate-x-1/2 text-center">
+      <p id="center-title" class="font-display text-4xl text-blood-500 drop-shadow-lg"></p>
+      <p id="center-sub" class="mt-2 text-lg text-zinc-200 drop-shadow"></p>
+    </div>
+  </div>
+
+  <!-- Build menu -->
+  <div id="build-menu" class="fixed left-3 top-[22rem] hidden w-[min(350px,90vw)]">
+    <div class="panel p-3">
+      <div class="mb-2 flex items-center justify-between">
+        <p class="panel-title text-base">Construction <span class="block text-[10px] font-sans text-zinc-500">click to place &middot; drag for walls &middot; R rotates &middot; right-click cancels</span></p>
+        <button id="ready-btn" class="btn-secondary btn-sm">Ready [Space]</button>
+      </div>
+      <div id="build-list" class="max-h-[calc(100vh-27rem)] space-y-2 overflow-y-auto pr-1"></div>
+    </div>
+  </div>
+
+  <!-- Structure inspector -->
+  <div id="inspect" class="fixed right-3 top-[15.5rem] hidden w-[min(330px,92vw)]">
+    <div class="panel max-h-[calc(100vh-17rem)] overflow-y-auto p-4 text-sm">
+      <div class="flex items-start justify-between gap-2">
+        <div><p id="in-title" class="panel-title"></p><p id="in-sub" class="text-xs text-zinc-400"></p></div>
+        <button id="in-close" class="btn-ghost btn-sm">&times;</button>
+      </div>
+      <div id="in-body" class="mt-2 space-y-2"></div>
+    </div>
+  </div>
+
+  <!-- Shop -->
+  <div id="lift" class="fixed right-3 top-1/2 hidden w-[min(360px,94vw)] -translate-y-1/2">
+    <div class="panel p-4">
+      <div class="flex items-center justify-between">
+        <p class="panel-title">Lift shaft</p>
+        <button id="lift-close" class="btn-ghost btn-sm">Close [F]</button>
+      </div>
+      <p class="mt-1 text-xs text-zinc-400">Ride to any level the shaft reaches, or pay to bore it deeper.</p>
+      <ul id="lift-levels" class="mt-3 space-y-1.5"></ul>
+    </div>
+  </div>
+  <div id="char" class="fixed inset-0 z-40 hidden flex items-center justify-center bg-black/60 p-4">
+    <div class="panel max-h-[90vh] w-[min(920px,96vw)] overflow-y-auto p-5">
+      <div class="flex items-center justify-between">
+        <p class="panel-title">Colonist &middot; suit &amp; tools</p>
+        <button id="char-close" class="btn-ghost btn-sm">Close [C]</button>
+      </div>
+      <div class="mt-3 grid gap-5 md:grid-cols-2">
+        <div>
+          <p class="mb-2 text-xs font-bold uppercase tracking-widest text-zinc-400">Upgrades (paid from the colony stockpile)</p>
+          <ul id="char-upgrades" class="space-y-2"></ul>
+        </div>
+        <div class="space-y-3 text-sm text-zinc-300">
+          <p class="text-xs font-bold uppercase tracking-widest text-zinc-400">How it works</p>
+          <p><b class="text-sky-300">Survive the night.</b> Machines only attack after dusk. Spend the day mining, building and charging batteries - at night every turret shot runs on stored energy.</p>
+          <p><b class="text-sky-300">The dome.</b> Your HQ's shield bubble holds the air and stops machines at its shell. Keep the HQ powered so it recharges (blue = healthy, amber &lt; 40%, red &lt; 10%). Build only inside it. Upgrade it at the HQ (Q).</p>
+          <p><b class="text-sky-300">Oxygen.</b> Your suit refills inside the dome, at any powered lift stop and at O&#8322; stations. Out in the vacuum and underground it drains.</p>
+          <p><b class="text-sky-300">Mining.</b> Hold <span class="kbd">RMB</span> to fire the mining laser straight ahead - it cuts rock and burns machines. Ore fills your backpack and unloads automatically at the HQ or a lift.</p>
+          <p><b class="text-sky-300">Going deeper.</b> Press <span class="kbd">F</span> at a lift to pick a level or pay to bore the shaft deeper. Better ore, ruins and ancient modules wait below.</p>
+          <p><b class="text-sky-300">Power.</b> Wire buildings with <span class="kbd">V</span>. Solar panels track the sun; batteries carry you through the night. The power panel graphs supply against what you are drawing.</p>
+          <p class="text-xs text-zinc-400"><span class="kbd">WASD</span> move &middot; <span class="kbd">Shift</span> sprint &middot; <span class="kbd">LMB</span> shoot &middot; <span class="kbd">B</span> build &middot; <span class="kbd">J</span> research &middot; <span class="kbd">Q</span> shop &middot; <span class="kbd">E</span> use &middot; <span class="kbd">U</span> inspect/upgrade &middot; <span class="kbd">X</span> demolish &middot; <span class="kbd">Space</span> ready</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="dev" class="fixed left-1/2 top-24 z-50 hidden w-[min(560px,96vw)] -translate-x-1/2">
+    <div class="panel border-fuchsia-500/50 p-4">
+      <div class="flex items-center justify-between">
+        <p class="panel-title text-fuchsia-300">Developer tools (admin only)</p>
+        <button id="dev-close" class="btn-ghost btn-sm">Close [F9]</button>
+      </div>
+      <div class="mt-3 grid grid-cols-3 gap-2 text-sm">
+        <button data-dev="god" class="btn-ghost btn-sm border border-fuchsia-500/50">God mode</button>
+        <button data-dev="res" class="btn-ghost btn-sm border border-fuchsia-500/50">Unlimited resources</button>
+        <button data-dev="tech" class="btn-ghost btn-sm border border-fuchsia-500/50">Unlock all research</button>
+        <button data-dev="suit" class="btn-ghost btn-sm border border-fuchsia-500/50">Max my suit</button>
+        <button data-dev="build" class="btn-ghost btn-sm border border-fuchsia-500/50">Finish construction</button>
+        <button data-dev="batt" class="btn-ghost btn-sm border border-fuchsia-500/50">Fill batteries</button>
+        <button data-dev="dome" class="btn-ghost btn-sm border border-fuchsia-500/50">Recharge dome</button>
+        <button data-dev="shaft" class="btn-ghost btn-sm border border-fuchsia-500/50">Bore shaft to bottom</button>
+        <button data-dev="kill" class="btn-ghost btn-sm border border-fuchsia-500/50">Kill all machines</button>
+        <button data-dev="boss" class="btn-ghost btn-sm border border-fuchsia-500/50">Spawn a boss</button>
+        <button data-dev="night" class="btn-ghost btn-sm border border-fuchsia-500/50">Skip to night</button>
+        <button data-dev="day" class="btn-ghost btn-sm border border-fuchsia-500/50">Skip to morning</button>
+      </div>
+      <div class="mt-3 flex flex-wrap items-center gap-2 text-sm">
+        <span class="text-zinc-400">Game speed</span>
+        <button data-dev="speed" data-v="1" class="btn-ghost btn-sm border border-zinc-600">x1</button>
+        <button data-dev="speed" data-v="2" class="btn-ghost btn-sm border border-zinc-600">x2</button>
+        <button data-dev="speed" data-v="4" class="btn-ghost btn-sm border border-zinc-600">x4</button>
+        <button data-dev="speed" data-v="8" class="btn-ghost btn-sm border border-zinc-600">x8</button>
+        <span class="ml-3 text-zinc-400">Start at wave</span>
+        <input id="dev-wave" type="number" min="1" max="60" value="10" class="w-16 rounded bg-zinc-900 px-2 py-1 text-zinc-100" />
+        <button data-dev="wave" class="btn-primary btn-sm">Go</button>
+      </div>
+    </div>
+  </div>
+  <div id="build-tip" class="hud-box pointer-events-none fixed z-50 hidden w-80 p-3 text-sm"></div>
+  <div id="shop" class="fixed right-3 top-1/2 hidden w-[min(380px,94vw)] -translate-y-1/2">
+    <div class="panel p-4">
+      <div class="flex items-center justify-between">
+        <p id="shop-title" class="panel-title">Shop</p>
+        <button id="shop-close" class="btn-ghost btn-sm">Close [Q]</button>
+      </div>
+      <ul id="shop-items" class="mt-3 space-y-1.5"></ul>
+    </div>
+  </div>
+
+  <!-- Research -->
+  <div id="research" class="fixed inset-0 hidden items-center justify-center bg-black/60 p-4">
+    <div class="panel w-full max-w-3xl p-5">
+      <div class="flex items-center justify-between">
+        <p class="panel-title text-xl">Research</p>
+        <button id="research-close" class="btn-ghost btn-sm">Close [J]</button>
+      </div>
+      <p id="research-note" class="text-sm text-zinc-400"></p>
+      <div id="research-list" class="mt-3 grid max-h-[70vh] gap-2 overflow-y-auto sm:grid-cols-2"></div>
+    </div>
+  </div>
+
+  <!-- Escape menu -->
+  <div id="esc-menu" class="fixed inset-0 hidden items-center justify-center bg-black/70 p-4">
+    <div class="panel w-full max-w-2xl p-6">
+      <div class="flex items-center justify-between">
+        <h2 class="font-display text-3xl text-amber-400">PAUSE MENU</h2>
+        <button id="esc-resume" class="btn-primary">Resume</button>
+      </div>
+      <p class="text-xs text-zinc-500">The colony keeps running while this menu is open.</p>
+      <div class="mt-4 grid gap-6 md:grid-cols-2">
+        <div>
+          <p class="panel-title text-base">Sound</p>
+          <div id="sound-settings" class="mt-2 space-y-3 text-sm"></div>
+          <label class="mt-3 flex items-center gap-2 text-sm"><input id="set-mute" type="checkbox" class="accent-amber-400" /> Mute all sound</label>
+        </div>
+        <div class="text-sm text-zinc-300">
+          <p class="panel-title text-base">Controls</p>
+          <ul class="mt-2 grid grid-cols-1 gap-1">
+            <li><span class="kbd">WASD</span> move &middot; <span class="kbd">Shift</span> sprint</li>
+            <li><span class="kbd">LMB</span> fire / place &middot; <span class="kbd">RMB</span> dig rock (underground)</li>
+            <li><span class="kbd">1-8</span> / wheel weapons &middot; <span class="kbd">R</span> reload / rotate</li>
+            <li><span class="kbd">B</span> build &middot; <span class="kbd">V</span> wire tool &middot; <span class="kbd">X</span> demolish</li>
+            <li><span class="kbd">U</span> or click a building: inspect, upgrade, modules</li>
+            <li><span class="kbd">F</span> ride elevator down &middot; <span class="kbd">Shift+F</span> up</li>
+            <li><span class="kbd">E</span> loot ruins / hold to repair</li>
+            <li><span class="kbd">Q</span> shop &middot; <span class="kbd">J</span> research</li>
+            <li><span class="kbd">G</span> EMP &middot; <span class="kbd">T</span> thermite &middot; <span class="kbd">H</span> med pack</li>
+            <li><span class="kbd">Space</span> ready &middot; <span class="kbd">Enter</span> chat &middot; <span class="kbd">M</span> mute</li>
+          </ul>
+          <p class="mt-3 text-xs text-zinc-500">Mine ore underground, bring it to an elevator, refine it on the surface, keep the power grid alive, and build Terraformers to win.</p>
+        </div>
+      </div>
+      <div class="mt-5 flex justify-end gap-2"><a href="/" class="btn-secondary">Leave to menu</a></div>
+    </div>
+  </div>
+
+  <!-- Chat -->
+  <div class="fixed bottom-48 left-3 w-80">
+    <ul id="chat-log" class="hud space-y-0.5 text-sm"></ul>
+    <input id="chat-input" class="input mt-1 hidden py-1 text-sm" maxlength="160" placeholder="Say something... (Enter to send, Esc to cancel)" />
+  </div>
+
+  <!-- Game over / victory -->
+  <div id="gameover" class="fixed inset-0 hidden items-center justify-center bg-black/75 p-4">
+    <div class="panel w-full max-w-lg p-6 text-center">
+      <h2 id="go-title" class="font-display text-4xl text-blood-500">THE COLONY HAS FALLEN</h2>
+      <p id="go-text" class="mt-2 text-zinc-300"></p>
+      <table class="mt-4 w-full text-sm"><thead class="text-zinc-500"><tr><th class="text-left">Colonist</th><th>Kills</th><th>Damage</th><th>Built</th><th>Mined</th></tr></thead><tbody id="go-rows"></tbody></table>
+      <p class="mt-4 text-sm text-zinc-400">A new colony lands in a few seconds. Rewards have been saved to your profile.</p>
+      <a href="/" class="btn-secondary mt-4">Back to menu</a>
+    </div>
+  </div>
+
+  <div id="status" class="fixed inset-0 flex items-center justify-center bg-black">
+    <div class="text-center">
+      <p id="status-text" class="animate-pulse font-display text-2xl text-zinc-400">Connecting...</p>
+      <a id="status-back" href="/" class="btn-secondary mt-6 hidden">Back to menu</a>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.min.js"></script>
+  <script type="module" src="/js/game/main.js"></script>
+</body>
+</html>

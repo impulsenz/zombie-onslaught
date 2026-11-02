@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body { @apply bg-zinc-950 text-zinc-100 font-sans antialiased; }
+  ::selection { @apply bg-blood-600 text-white; }
+}
+
+@layer components {
+  .panel { @apply rounded-xl border border-zinc-800 bg-zinc-900/80 backdrop-blur shadow-xl; }
+  .panel-title { @apply font-display text-lg tracking-wide text-zinc-200; }
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400; }
+  .btn-primary { @apply btn bg-blood-600 text-white hover:bg-blood-500; }
+  .btn-secondary { @apply btn bg-zinc-800 text-zinc-100 hover:bg-zinc-700 border border-zinc-700; }
+  .btn-ghost { @apply btn text-zinc-300 hover:bg-zinc-800; }
+  .btn-sm { @apply px-2.5 py-1 text-sm; }
+  .input { @apply w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:border-amber-400 focus:outline-none; }
+  .chip { @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold; }
+  .bar { @apply h-2 w-full overflow-hidden rounded-full bg-zinc-800; }
+  .bar > span { @apply block h-full rounded-full transition-[width] duration-150; }
+  .kbd { @apply rounded border border-zinc-600 bg-zinc-800 px-1.5 py-0.5 font-mono text-[11px] text-zinc-200; }
+  .hud { @apply pointer-events-none select-none; }
+  .hud-box { @apply rounded-lg border border-white/10 bg-black/55 backdrop-blur-sm; }
+}
